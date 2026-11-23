@@ -15,7 +15,7 @@
 // /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
@@ -42,7 +42,7 @@ if (!existsSync(inputFile)) {
   process.stderr.write(`token radar: no snapshot at ${inputFile}: pass --input <snapshot.json|directory> or mount the sealed /input\n`);
   process.exit(2);
 }
-const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
+const outputDir = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
 const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
 const { board, radar } = buildRadar(snapshot);
@@ -52,9 +52,17 @@ if (issue !== null) {
   process.exit(1);
 }
 
-mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
-writeFileSync(join(out, 'data.js'), dataScript(radar));
+// Prepare the output directory: create it, then empty its CONTENTS.
+// Never the directory itself — /output is a mount point in the grader,
+// and removing it fails the run. Emptying first means no stale file from
+// an earlier run can linger beside this run's output.
+mkdirSync(outputDir, { recursive: true });
+for (const name of readdirSync(outputDir)) {
+  rmSync(join(outputDir, name), { recursive: true, force: true });
+}
+
+writeFileSync(join(outputDir, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
+writeFileSync(join(outputDir, 'data.js'), dataScript(radar));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */
 function copyFiles(from: string, to: string): string[] {
@@ -71,8 +79,8 @@ function copyFiles(from: string, to: string): string[] {
   return copied;
 }
 
-copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
-const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
+copyFiles(join(here, 'dashboard'), join(outputDir, 'dashboard'));
+const shots = copyFiles(join(here, 'screenshots'), join(outputDir, 'screenshots'));
 if (shots.length < 3) {
   process.stderr.write(`token radar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
   process.exit(1);
@@ -85,7 +93,7 @@ for (const name of shots) {
 }
 
 // The dossier is written last: the scorer rebuilds it from this /output and compares bytes.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } }));
+writeFileSync(join(outputDir, 'dossier.json'), buildDossier(outputDir, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } }));
 
 const v = radar.validation;
 const fmtUsd = (n: number): string => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : `$${(n / 1e6).toFixed(1)}M`);
@@ -94,5 +102,5 @@ process.stdout.write(
     `token radar: total implied ${fmtUsd(radar.totals.totalImpliedUsd)}, top-1 ${radar.totals.top1Slug} ${fmtUsd(radar.totals.top1ImpliedUsd)}\n` +
     `token radar: LOO ${v.loo.toFixed(4)}  5-fold ${v.fiveFold.toFixed(4)}  WF-35 x${v.wf35.toFixed(2)}  WF-null24 x${v.wfNull24.toFixed(2)}  category-blind x${v.catBlindMedianMiss.toFixed(2)}\n` +
     `token radar: range holds ${Math.round(v.coverage50 * 100)}% (P25-75) and ${Math.round(v.coverage80 * 100)}% (P10-90) of held-out values\n` +
-    `token radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (3 files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
+    `token radar: wrote ${join(outputDir, 'board.json')}, ${join(outputDir, 'data.js')}, ${join(outputDir, 'dashboard')} (3 files), ${join(outputDir, 'screenshots')} (${shots.length} images) and ${join(outputDir, 'dossier.json')}\n`,
 );
