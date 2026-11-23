@@ -6,8 +6,9 @@
 | Decision | cycle 47 — BUILD DENGAN SYARAT, Cabang 2 revisi + bar D1–D12 |
 | Builder | R7 builder subagent (different agent from verifier K3/K4a and from the R6 builder) |
 | Repo | `zxpast/makefun-token-radar-01-r7` — https://github.com/zxpast/makefun-token-radar-01-r7 |
-| Remote HEAD | `42d1cabfdeb6f3b43a27430e57c0eb611f876b6c` (after the out/ cleanup; see §7) |
-| Local HEAD | `ad49a8a` (main.ts C2c fix; same tree as the remote HEAD) |
+| Code commit (remote) | `92d9303f903c9453f92eb7a3fa2e6ee5913bf487` (main.ts C2c fix; the code verified in §5–§6) |
+| This log (remote) | committed on top of the code commit; see the repo for the current HEAD |
+| Local HEAD | `335157d` (this BUILD-LOG; same tree as the remote HEAD at push time) |
 | Submit | **DO NOT SUBMIT — main agent verifies + bundles + submits after a separate Verifier checks D1–D12** |
 
 ## 1. Verdict
